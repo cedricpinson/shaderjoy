@@ -1,22 +1,22 @@
 #include "window.h"
+#include "Application.h"
 #include "glad/glad.h"
 
 #include <GLFW/glfw3.h>
 #include <stdio.h>
 
-const char* const title = "shaderjoy";
+const char* const title = "shaderjoy - Press space to pause";
 
-int* gWidth = nullptr;
-int* gHeight = nullptr;
-float* gPixelRatio = nullptr;
+Application* gApplication = nullptr;
 
 void setViewport(int _width, int _height)
 {
-    *gWidth = _width;
-    *gHeight = _height;
-    const float pixelRatio = *gPixelRatio;
+    gApplication->width = _width;
+    gApplication->height = _height;
+    const float pixelRatio = gApplication->pixelRatio;
     glViewport(0, 0, int(float(_width) * pixelRatio), int(float(_height) * pixelRatio));
-    printf("setViewport %d x %d\n", int(_width * pixelRatio), int(_height * pixelRatio));
+    // printf("setViewport %d x %d\n", int(_width * pixelRatio), int(_height * pixelRatio));
+    gApplication->requestFrame = true;
 }
 
 float getPixelRatio(GLFWwindow* window)
@@ -28,12 +28,9 @@ float getPixelRatio(GLFWwindow* window)
     return float(fw) / float(w);
 }
 
-GLFWwindow* setupWindow(WindowStyle style, int* width, int* height, float* pixelRatio)
+GLFWwindow* setupWindow(WindowStyle style, Application* app)
 {
-
-    gWidth = width;
-    gHeight = height;
-    gPixelRatio = pixelRatio;
+    gApplication = app;
 
 // ok on macos if GLFW_COCOA_CHDIR_RESOURCES is not set to false
 // then it's not possible to run an executables with the name sketchfab/sketchfab
@@ -65,15 +62,15 @@ GLFWwindow* setupWindow(WindowStyle style, int* width, int* height, float* pixel
     if (style == FULLSCREEN) {
         GLFWmonitor* monitor = glfwGetPrimaryMonitor();
         const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-        *gWidth = mode->width;
-        *gHeight = mode->height;
+        app->width = mode->width;
+        app->height = mode->height;
         glfwWindowHint(GLFW_RED_BITS, mode->redBits);
         glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
         glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
         glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
-        window = glfwCreateWindow(*gWidth, *gHeight, title, monitor, NULL);
+        window = glfwCreateWindow(app->width, app->height, title, monitor, NULL);
     } else {
-        window = glfwCreateWindow(*gWidth, *gHeight, title, NULL, NULL);
+        window = glfwCreateWindow(app->width, app->height, title, NULL, NULL);
     }
 
     if (!window) {
@@ -84,8 +81,8 @@ GLFWwindow* setupWindow(WindowStyle style, int* width, int* height, float* pixel
 
     // glfwSetInputMode(window.window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
     glfwMakeContextCurrent(window);
-    *gPixelRatio = getPixelRatio(window);
-    printf("window size %d x %d : pixel ratio %f\n", *gWidth, *gHeight, *gPixelRatio);
+    app->pixelRatio = getPixelRatio(window);
+    printf("window size %d x %d : pixel ratio %f\n", app->width, app->height, app->pixelRatio);
 
     if (!gladLoadGL()) {
         glfwTerminate();
@@ -109,10 +106,17 @@ GLFWwindow* setupWindow(WindowStyle style, int* width, int* height, float* pixel
         (void)_mods;
         if (_key == GLFW_KEY_ESCAPE && _action == GLFW_PRESS) {
             glfwSetWindowShouldClose(_window, GLFW_TRUE);
+        } else if (_key == GLFW_KEY_SPACE && _action == GLFW_PRESS) {
+            gApplication->pause = !gApplication->pause;
+            if (gApplication->pause) {
+                glfwSetWindowTitle(_window, "shaderjoy - PAUSED");
+            } else {
+                glfwSetWindowTitle(_window, title);
+            }
         }
     });
 
-    setViewport(*gWidth, *gHeight);
+    setViewport(app->width, app->height);
 
     glfwSwapInterval(1);
 

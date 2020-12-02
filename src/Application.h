@@ -10,4 +10,6 @@ struct Application {
     int height = 768;
     float pixelRatio = 0;
     std::vector<std::string> files;
+    bool pause = false;
+    bool requestFrame = true;
 };

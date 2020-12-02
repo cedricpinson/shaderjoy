@@ -1,15 +1,12 @@
 #include "Application.h"
 #include "ProgramDescription.h"
+#include "UniformList.h"
 #include "glad/glad.h"
 #include "timer.h"
 #include "watcher.h"
 #include "window.h"
 
 #include <sys/stat.h>
-
-#if !defined(_WIN32)
-#include <unistd.h>
-#endif
 
 #include <GLFW/glfw3.h>
 #include <stdio.h>
@@ -19,6 +16,10 @@
 #include <mutex>
 #include <thread>
 #include <vector>
+
+void initIMGUI(GLFWwindow* window);
+void drawIMGUI();
+void cleanupIMGUI();
 
 void debugShader(const char* text, const char* error);
 
@@ -56,7 +57,7 @@ uniform vec3 iResolution;
 uniform float iTime;
 uniform float iTimeDelta;
 uniform int iFrame;
-uniform int iFrameRate;
+uniform float iFrameRate;
 
 )";
 
@@ -201,20 +202,6 @@ bool compileProgram(const GLuint vs, const char* shader, const size_t size, GLui
     return true;
 }
 
-struct UniformList {
-    float iResolution[3] = {};
-    float iTime = 0.0f;
-    float iTimeDelta = 0.0f;
-    int iFrame = 0;
-    int iFrameRate = 0;
-
-    int iTimeLocation;
-    int iResolutionLocation;
-    int iTimeDeltaLocation;
-    int iFrameLocation;
-    int iFrameRateLocation;
-};
-
 void getUniformList(const ProgramDescription* description, UniformList& uniforms)
 {
     uniforms.iTimeLocation = getUniformLocation(description, "iTime");
@@ -252,6 +239,13 @@ void updateUniforms(UniformList uniforms)
         glUniform1f(uniforms.iTimeDeltaLocation, uniforms.iTimeDelta);
     }
 
+    if (uniforms.iFrameRateLocation != -1) {
+#ifdef DISPLAY_UNIFORM
+        printf("iFrameRate %d\n", uniforms.iFrameRate);
+#endif
+        glUniform1f(uniforms.iFrameRateLocation, uniforms.iFrameRate);
+    }
+
     // int
     if (uniforms.iFrameLocation != -1) {
 #ifdef DISPLAY_UNIFORM
@@ -259,14 +253,11 @@ void updateUniforms(UniformList uniforms)
 #endif
         glUniform1i(uniforms.iFrameLocation, uniforms.iFrame);
     }
-
-    if (uniforms.iFrameRateLocation != -1) {
-#ifdef DISPLAY_UNIFORM
-        printf("iFrameRate %d\n", uniforms.iFrameRate);
-#endif
-        glUniform1i(uniforms.iFrameRateLocation, uniforms.iFrameRate);
-    }
 }
+
+void frameIMGUI(Application* app, const UniformList& uniformList);
+
+void drawFrame() {}
 
 int main(int argc, char** argv)
 {
@@ -287,11 +278,13 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    GLFWwindow* window = setupWindow(REGULAR, &app.width, &app.height, &app.pixelRatio);
+    GLFWwindow* window = setupWindow(REGULAR, &app);
 
     if (!window) {
         return 1;
     }
+
+    initIMGUI(window);
 
     float points[] = {4.0f,  -1.0f, // NOLINT
                       -1.0f, 4.0f,  // NOLINT
@@ -326,40 +319,13 @@ int main(int argc, char** argv)
     double timeStart = getTimeInMS();
     double lastFrame = timeStart;
 
+    double fpsStart = timeStart;
+    int fpsFrameCount = 0;
+
     while (app.running.load() && !glfwWindowShouldClose(window)) {
-
-        // update window dimension
-        uniformList.iResolution[0] = float(app.width) * app.pixelRatio;
-        uniformList.iResolution[1] = float(app.height) * app.pixelRatio;
-        uniformList.iResolution[2] = uniformList.iResolution[1] / uniformList.iResolution[0];
-
-        glDisable(GL_DEPTH_TEST);
-
-        // Clear the background
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        glUseProgram(program);
-
-        updateUniforms(uniformList);
-
-        glBindVertexArray(vao);
-        // draw points 0-3 from the currently bound VAO with current in-use shader
-        glDrawArrays(GL_TRIANGLES, 0, 3);
 
         /* Poll for and process events */
         glfwPollEvents();
-
-        /* Swap front and back buffers */
-        glfwSwapBuffers(window);
-
-        // updates some var to refresh uniforms
-        uniformList.iFrame++;
-        {
-            double now = getTimeInMS();
-            uniformList.iTime = float((now - timeStart) / 1000.0);
-            uniformList.iTimeDelta = float((now - lastFrame) / 1000.0);
-            lastFrame = now;
-        }
 
         if (app.watcher.fileChanged()) {
             app.watcher.lock();
@@ -377,11 +343,65 @@ int main(int argc, char** argv)
                 printf("error to compile new program\n");
             }
         }
+
+        // the app can be in pause in this case we do not render new frame
+        // except if a requestFrame is asked. It happens when resizing the window
+        // or recompiling a program
+        // so requestFrame is a a boolean used as an exception when in pause mode
+        if (app.pause && !app.requestFrame) {
+            sleepInMS(500);
+            continue;
+        }
+
+        // update window dimension
+        uniformList.iResolution[0] = float(app.width) * app.pixelRatio;
+        uniformList.iResolution[1] = float(app.height) * app.pixelRatio;
+        uniformList.iResolution[2] = uniformList.iResolution[1] / uniformList.iResolution[0];
+
+        // Clear the background
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        glDisable(GL_DEPTH_TEST);
+
+        glUseProgram(program);
+
+        updateUniforms(uniformList);
+
+        glBindVertexArray(vao);
+        // draw points 0-3 from the currently bound VAO with current in-use shader
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        frameIMGUI(&app, uniformList);
+
+        /* Swap front and back buffers */
+        glfwSwapBuffers(window);
+
+        // updates some var to refresh uniforms
+        uniformList.iFrame++;
+        fpsFrameCount++;
+        {
+            const double now = getTimeInMS();
+            uniformList.iTime = float((now - timeStart) / 1000.0);
+            uniformList.iTimeDelta = float((now - lastFrame) / 1000.0);
+            lastFrame = now;
+
+            // compute fps
+            const double deltaFPS = now - fpsStart;
+            if (deltaFPS >= 1000.0) {
+                uniformList.iFrameRate = double(fpsFrameCount) * 1000.0 / deltaFPS;
+                fpsFrameCount = 0;
+                fpsStart = now;
+            }
+        }
+
+        // reset the request of frame
+        app.requestFrame = false;
     }
     app.running.store(false);
 
     fileWatcher.join();
 
+    cleanupIMGUI();
     cleanupWindow(window);
 
     return 0;
