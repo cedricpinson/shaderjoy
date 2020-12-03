@@ -14,10 +14,10 @@ struct ProgramDescription {
         union Data {
             struct {
                 float f[4];
-            };
+            } f;
             struct {
                 int i[4];
-            };
+            } i;
             float data[4];
         };
         Data data;

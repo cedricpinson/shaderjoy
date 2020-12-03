@@ -20,7 +20,7 @@ bool readFile(const char* path, std::vector<char>& buffer)
     fread(buffer.data(), 1, size, file);
     fclose(file);
 
-    printf("read file %s (%lu bytes) successfully\n", path, buffer.size());
+    printf("read file %s (%zu bytes) successfully\n", path, buffer.size());
     return true;
 }
 
