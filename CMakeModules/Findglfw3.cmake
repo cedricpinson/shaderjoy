@@ -65,7 +65,7 @@ find_library( GLFW_LIBRARY
     NO_DEFAULT_PATH
     DOC "The GLFW library")
 
-find_package_handle_standard_args(GLFW DEFAULT_MSG
+find_package_handle_standard_args(GLFW3 DEFAULT_MSG
     GLFW_INCLUDE_DIR
     GLFW_LIBRARY
     )
