@@ -11,11 +11,16 @@ endif()
 
 project(shaderjoy VERSION 0.14 LANGUAGES CXX)
 
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMakeModules")
+
 find_package(GLFW3 REQUIRED)
 find_package(OpenGL REQUIRED)
 
 if(MSVC)
-    add_compile_options(/W4 /WX)
+    add_compile_options(/W4 /WX /wd4146)
+    add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+    add_definitions(-D_SCL_SECURE_NO_WARNINGS)
+    add_definitions(-D_USE_MATH_DEFINES)
 else()
     add_compile_options(-Wall -Werror -Wshadow -pedantic -Wparentheses -Wno-import -Wreturn-type -Wmissing-braces -Wunknown-pragmas -Wuninitialized -Wunused -Wextra -fno-exceptions -fno-rtti -Wno-gnu-anonymous-struct)
 endif()

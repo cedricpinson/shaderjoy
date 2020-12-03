@@ -10,4 +10,4 @@ set(SOURCES
 include_directories(${GLFW_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/deps)
 
 add_executable(shaderjoy ${SOURCES})
-target_link_libraries(shaderjoy glfw ${OPENGL_LIBRARIES})
+target_link_libraries(shaderjoy ${GLFW_LIBRARY} ${OPENGL_LIBRARIES})
