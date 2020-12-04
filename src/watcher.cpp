@@ -1,9 +1,8 @@
 #include "watcher.h"
 #include "Application.h"
+#include "timer.h"
 
 #include <thread>
-
-void pal_sleep(uint64_t value) { std::this_thread::sleep_for(std::chrono::microseconds(value)); }
 
 bool readFile(const char* path, std::vector<char>& buffer)
 {
@@ -56,6 +55,6 @@ void fileWatcherThread(Application* application)
                 }
             }
         }
-        pal_sleep(500000);
+        sleepInMS(500);
     }
 }

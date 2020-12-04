@@ -1,4 +1,6 @@
 set(SOURCES
+    imguiFrame.cpp
+    imguiLoader.cpp
     opengl.cpp
     programReport.cpp
     timer.cpp

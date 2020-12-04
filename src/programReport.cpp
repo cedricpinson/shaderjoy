@@ -16,8 +16,8 @@ struct LineError {
 bool extractLineError(LineError& lineError, const char* nextReturn, const char* nlineCharacter,
                       const char* nextDelimiter, const int textLineCount)
 {
-    const size_t lineNumberSize = nextDelimiter - nlineCharacter;
-    if (!nextDelimiter || lineNumberSize > 8) {
+    const size_t lineNumberSize = size_t(nextDelimiter - nlineCharacter);
+    if (lineNumberSize > 8) {
         return false;
     }
     char tmp[8]{};
@@ -61,8 +61,8 @@ int getLineErrors(LineError* lineError, const char* text, const int shaderLineCo
             break;
         }
 
-        const size_t indexCharacter0 = nextCharacter0 - currentPointer;
-        const size_t lineSize = nextReturn - currentPointer;
+        const size_t indexCharacter0 = size_t(nextCharacter0 - currentPointer);
+        const size_t lineSize = size_t(nextReturn - currentPointer);
 
         // candidate to extract line number
         if (indexCharacter0 == 7 && (nextCharacter0[1] == ':') && lineSize > 10) {
@@ -137,7 +137,7 @@ void debugShader(const char* text, const char* error)
         if (!nextReturn) {
             break;
         }
-        const int lineSize = int(nextReturn - currentPointer);
+        const size_t lineSize = size_t(nextReturn - currentPointer);
         strncpy(line, currentPointer, lineSize);
         line[lineSize] = '\0';
         const bool hasError = injectErrorInline(lineErrors, lineErrorCount, nLine, line);
