@@ -30,8 +30,8 @@ void frameIMGUI(Application* app, const UniformList& uniformList)
     ImGui::Text("Time %.2f", uniformList.iTime);
 
     ImGui::SameLine(240);
-    int width = app->width * app->pixelRatio;
-    int height = app->height * app->pixelRatio;
+    const int width = static_cast<int>(double(app->width) * app->pixelRatio);
+    const int height = static_cast<int>(double(app->height) * app->pixelRatio);
     ImGui::Text("%d x %d", width, height);
 
     ImGui::End();

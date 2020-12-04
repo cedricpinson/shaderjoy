@@ -388,7 +388,7 @@ int main(int argc, char** argv)
             // compute fps
             const double deltaFPS = now - fpsStart;
             if (deltaFPS >= 1000.0) {
-                uniformList.iFrameRate = double(fpsFrameCount) * 1000.0 / deltaFPS;
+                uniformList.iFrameRate = static_cast<float>(double(fpsFrameCount) * 1000.0 / deltaFPS);
                 fpsFrameCount = 0;
                 fpsStart = now;
             }

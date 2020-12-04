@@ -9,9 +9,33 @@
 
 #include <thread>
 
+#if defined(__clang__)
+#pragma clang diagnostic push
+#endif
+#if defined(_MSC_VER)
+#pragma warning(push)
+#endif
+
+#if defined(__clang__)
+//#pragma clang diagnostic ignored "-Wsign-compare"
+#pragma clang diagnostic ignored "-Wsign-conversion"
+#endif
+
+#if defined(_MSC_VER)
+#pragma warning(disable : 4388)
+#endif
+
 // https://github.com/floooh/sokol/blob/master/sokol_time.h
 #define SOKOL_TIME_IMPL
 #include <sokol/sokol_time.h>
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 void initTime() { stm_setup(); }
 double getTimeInMS() { return stm_ms(stm_now()); }

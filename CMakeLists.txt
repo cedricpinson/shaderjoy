@@ -22,7 +22,7 @@ if(MSVC)
     add_definitions(-D_SCL_SECURE_NO_WARNINGS)
     add_definitions(-D_USE_MATH_DEFINES)
 else()
-    add_compile_options(-Wall -Werror -Wshadow -pedantic -Wparentheses -Wno-import -Wreturn-type -Wmissing-braces -Wunknown-pragmas -Wuninitialized -Wunused -Wextra -fno-exceptions -fno-rtti -Wno-gnu-anonymous-struct)
+    add_compile_options(-Wall -Werror -Wshadow -pedantic -Wparentheses -Wno-import -Wreturn-type -Wmissing-braces -Wunknown-pragmas -Wuninitialized -Wunused -Wextra -fno-exceptions -fno-rtti -Wno-gnu-anonymous-struct -Wsign-conversion)
 endif()
 
 if(APPLE)
