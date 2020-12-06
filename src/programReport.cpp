@@ -1,152 +1,225 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <vector>
 
-// try to get error lines numbers
+#include "programReport.h"
+
+// extract for the current type of errors
 // ERROR: 0:18: Use of undeclared identifier 'color0'
-// ERROR: 0:18: Use of undeclared identifier 'color1'
 // 0(18) : error C0000: syntax error, unexpected ';', expecting "::" at token ";"
 // 0(23) : error C1503: undefined variable "offset"
-struct LineError {
-    const char* error = nullptr;
-    int lineNumber = 0;
-    int errorSize = 0;
-};
-
-bool extractLineError(LineError& lineError, const char* nextReturn, const char* nlineCharacter,
-                      const char* nextDelimiter, const int textLineCount)
+bool extractLineError(Line& line, const char* errorLine, size_t errorLineSize)
 {
-    const size_t lineNumberSize = size_t(nextDelimiter - nlineCharacter);
-    if (lineNumberSize > 8) {
-        return false;
+    char tmp[16];
+    if (memcmp("ERROR: 0:", errorLine, 9) == 0) {
+        // parse this format:
+        // ERROR: 0:18: Use of undeclared identifier 'color0'
+        // ERROR: 0:18: Use of undeclared identifier 'color1'
+
+        const char* lineNumberPtr = errorLine + 9;
+        const char* endLineNumberPtr = strchr(lineNumberPtr, ':');
+        assert(endLineNumberPtr != nullptr && "format of error not recognized: ERROR: 0:18: .....");
+
+        const size_t lineNumberSize = size_t(endLineNumberPtr - lineNumberPtr);
+        strncpy(tmp, lineNumberPtr, lineNumberSize);
+        tmp[lineNumberSize] = 0;
+        const int lineNumber = atoi(tmp);
+        line.lineNumber = size_t(lineNumber);
+        line.text = endLineNumberPtr + 2;
+        line.size = size_t((errorLine + errorLineSize) - line.text);
+        return true;
+    } else if (memcmp("0(", errorLine, 2) == 0) {
+        // parse this format:
+        // 0(18) : error C0000: syntax error, unexpected ';', expecting "::" at token ";"
+        // 0(23) : error C1503: undefined variable "offset"
+
+        const char* lineNumberPtr = errorLine + 2;
+        const char* endLineNumberPtr = strchr(lineNumberPtr, ')');
+        assert(endLineNumberPtr != nullptr && "0(23) : error ...");
+
+        const size_t lineNumberSize = size_t(endLineNumberPtr - lineNumberPtr);
+        strncpy(tmp, lineNumberPtr, lineNumberSize);
+        tmp[lineNumberSize] = 0;
+        const int lineNumber = atoi(tmp);
+        line.lineNumber = size_t(lineNumber);
+        line.text = strchr(endLineNumberPtr, ':') + 2;
+        line.size = size_t((errorLine + errorLineSize) - line.text);
+        return true;
     }
-    char tmp[8]{};
-    strncpy(tmp, nlineCharacter, lineNumberSize);
-    const int lineNumber = atoi(tmp);
-    // be sure the value makes sense if it's out of range we probably get a bad number
-    if (lineNumber < 0 || lineNumber >= textLineCount)
-        return false;
-    lineError.lineNumber = lineNumber;
-    lineError.error = nextDelimiter + 2;
-    lineError.errorSize = int(nextReturn - lineError.error);
-    return true;
+
+    return false;
 }
 
-int getLineCount(const char* text)
+void convertTextToLineList(const char* text, std::vector<Line>& lineList)
+{
+    const size_t textSize = strlen(text);
+    const char* currentPointer = text;
+    const char* endOfText = text + textSize;
+    size_t lineCount = 0;
+    while (true) {
+        Line line;
+        line.text = currentPointer;
+        line.lineNumber = lineCount;
+        const char* nextLine = strchr(currentPointer, '\n');
+        if (nextLine == nullptr) {
+            line.size = size_t(endOfText - currentPointer);
+            lineList.push_back(line);
+            break;
+        }
+        line.size = size_t(nextLine - currentPointer);
+        // printf("size %d\n", line.size);
+        lineList.push_back(line);
+
+        lineCount++;
+        currentPointer = nextLine + 1;
+    }
+}
+
+void convertErrorTextToLineList(const char* text, std::vector<Line>& errorList)
+{
+    std::vector<Line> lineList;
+    convertTextToLineList(text, lineList);
+
+    for (auto&& line : lineList) {
+        Line error;
+        if (extractLineError(error, line.text, line.size)) {
+            errorList.emplace_back(error);
+        }
+    }
+}
+
+size_t lineCount(const char* text)
 {
     const char* currentPointer = text;
-    int lineCount = 0;
+    size_t lineCount = 0;
     while (true) {
+        Line line;
+        line.text = currentPointer;
+        line.lineNumber = lineCount;
         const char* nextLine = strchr(currentPointer, '\n');
-        if (nextLine == nullptr)
+        if (nextLine == nullptr) {
             break;
-
+        }
         lineCount++;
         currentPointer = nextLine + 1;
     }
     return lineCount;
 }
 
-int getLineErrors(LineError* lineError, const char* text, const int shaderLineCount)
-{
-    const char* currentPointer = text;
-    const int size = int(strlen(text));
-    int nbLines = 0;
-    while (currentPointer < &text[size]) {
-
-        const char* nextCharacter0 = strchr(currentPointer, '0');
-        const char* nextReturn = strchr(currentPointer, '\n');
-
-        if (!nextCharacter0 || !nextReturn) {
-            break;
-        }
-
-        const size_t indexCharacter0 = size_t(nextCharacter0 - currentPointer);
-        const size_t lineSize = size_t(nextReturn - currentPointer);
-
-        // candidate to extract line number
-        if (indexCharacter0 == 7 && (nextCharacter0[1] == ':') && lineSize > 10) {
-            // ERROR: 0:18: Use of undeclared identifier 'color0'
-            //        ^
-            const char* lineNumberCharacter = nextCharacter0 + 2;
-            const char* nextDelimiter = strchr(lineNumberCharacter, ':');
-            const bool validLineNumber =
-                extractLineError(lineError[nbLines], nextReturn, lineNumberCharacter, nextDelimiter, shaderLineCount);
-            if (validLineNumber)
-                nbLines++;
-
-        } else if (indexCharacter0 == 0 && (nextCharacter0[1] == '(') && lineSize > 3) {
-            // 0(18) : error C0000: syntax error, unexpected ';', expecting "::" at token ";"
-            // ^
-            const char* lineNumberCharacter = nextCharacter0 + 2;
-            const char* nextDelimiter = strchr(lineNumberCharacter, ')');
-            const bool validLineNumber =
-                extractLineError(lineError[nbLines], nextReturn, lineNumberCharacter, nextDelimiter, shaderLineCount);
-            if (validLineNumber)
-                nbLines++;
-        }
-
-        currentPointer = nextReturn + 1;
-    }
-    return nbLines;
-}
-
-int findIndentation(const char* line)
+int getShaderLineIndentation(const Line& line)
 {
     int i = 0;
     // count character that are differnt from space
-    while (line[i] != '\0') {
-        if (line[i] != ' ')
+    while (i < static_cast<int>(line.size)) {
+        if (line.text[i] != ' ')
             return i;
         i++;
     }
     return 0;
 }
 
-bool injectErrorInline(const LineError* lineError, const int lineErrorCount, const int noLine, const char* line)
+size_t printConsole(const Line& line, LineType lineType, int indentationError, char* buffer)
 {
-    bool hasError = false;
-    int nbCharacterIndentation = 0;
-    bool computedIndentation = false;
-    for (int i = 0; i < lineErrorCount; ++i) {
-        if (lineError[i].lineNumber == noLine) {
-            if (!computedIndentation) {
-                nbCharacterIndentation = findIndentation(line);
-                computedIndentation = true;
-            }
-            fprintf(stderr, "\033[33;3m %*s%.*s\033[0m\n", nbCharacterIndentation + 5, "", lineError[i].errorSize,
-                    lineError[i].error);
-            hasError = true;
-        }
+    switch (lineType) {
+    case LINE_ERROR:
+        return (size_t)sprintf(buffer, "\033[33;3m %*s%.*s\033[0m\n", indentationError + 5, "", int(line.size),
+                               line.text);
+    case LINE_SHADER_ERROR:
+        return (size_t)sprintf(buffer, "\033[31;1m %3d :%.*s\033[0m\n", int(line.lineNumber), int(line.size),
+                               line.text);
+    case LINE_SHADER:
+        return (size_t)sprintf(buffer, " %3d :%.*s\n", int(line.lineNumber), int(line.size), line.text);
     }
-    return hasError;
 }
 
-void debugShader(const char* text, const char* error)
+size_t generateShaderTextWithErrorsInlined(const ShaderCompileReport& shaderReport, char* buffer, PrintLine printLine)
 {
-    LineError lineErrors[1024];
-    const char* currentPointer = text;
-    const int size = int(strlen(text));
-    const int textLineCount = getLineCount(text);
-    const int lineErrorCount = getLineErrors(lineErrors, error, textLineCount);
-    int nLine = 1;
-    char line[1024]{};
+    const std::vector<Line>& shaderLines = shaderReport.shaderLines;
+    const std::vector<Line>& errorLines = shaderReport.errorLines;
 
-    while (currentPointer < &text[size]) {
-        const char* nextReturn = strchr(currentPointer, '\n');
-        if (!nextReturn) {
-            break;
+    size_t errorIndex = 0;
+    size_t resultIndex = 0;
+    for (size_t i = 0; i < shaderLines.size(); ++i) {
+
+        bool hasError = false;
+        int indentation = 0;
+        for (size_t j = errorIndex; j < errorLines.size(); j++) {
+            if (errorLines[j].lineNumber == i) {
+                hasError = true;
+                if (!indentation) {
+                    indentation = getShaderLineIndentation(shaderLines[i]);
+                }
+                // resultIndex += (size_t)sprintf(buffer + resultIndex, "\033[33;3m %*s%.*s\033[0m\n",
+                // int(indentation + 5), "", int(errorLines[j].size), errorLines[j].text);
+                resultIndex += printLine(errorLines[j], LINE_ERROR, indentation, buffer + resultIndex);
+            }
         }
-        const size_t lineSize = size_t(nextReturn - currentPointer);
-        strncpy(line, currentPointer, lineSize);
-        line[lineSize] = '\0';
-        const bool hasError = injectErrorInline(lineErrors, lineErrorCount, nLine, line);
+
         if (hasError) {
-            fprintf(stderr, "\033[31;1m %3d :%s\033[0m\n", nLine, line);
+            resultIndex += printLine(shaderLines[i], LINE_SHADER_ERROR, 0, buffer + resultIndex);
+            // resultIndex += (size_t)sprintf(buffer + resultIndex, "\033[31;1m %3d :%.*s\033[0m\n", int(i),
+            //                                int(shaderLines[i].size), shaderLines[i].text);
         } else {
-            fprintf(stderr, " %3d :%s\n", nLine, line);
+            // resultIndex += (size_t)sprintf(buffer + resultIndex, " %3d :%.*s\n", int(i), int(shaderLines[i].size),
+            //                                shaderLines[i].text);
+            resultIndex += printLine(shaderLines[i], LINE_SHADER, 0, buffer + resultIndex);
         }
-        nLine++;
-        currentPointer = nextReturn + 1;
+    }
+    if (buffer) {
+        buffer[resultIndex] = 0;
+    }
+    return resultIndex;
+}
+
+size_t generateShaderTextErrors(const ShaderCompileReport& shaderReport, char* buffer)
+{
+    size_t resultErrorIndex = 0;
+    for (auto&& line : shaderReport.errorLines) {
+        resultErrorIndex +=
+            (size_t)sprintf(buffer + resultErrorIndex, " %3d :%.*s\n", int(line.lineNumber), int(line.size), line.text);
+    }
+    buffer[resultErrorIndex] = 0;
+    return resultErrorIndex;
+}
+
+void createShaderReport(const char* shaderText,     // NOLINT
+                        const char* errorLog,       // NOLINT
+                        const char* preShaderText,  // NOLINT
+                        const char* postShaderText, // NOLINT
+                        ShaderCompileReport* shaderReport)
+{
+    std::vector<Line>& errors = shaderReport->errorLines;
+    errors.reserve(100);
+    errors.clear();
+
+    std::vector<Line>& shader = shaderReport->shaderLines;
+    shader.reserve(1000);
+    shader.clear();
+
+    if (errorLog) {
+        convertErrorTextToLineList(errorLog, errors);
+    }
+
+    convertTextToLineList(shaderText, shader);
+
+    const size_t preShaderLineCount = lineCount(preShaderText);
+    const size_t postShaderLineCount = lineCount(postShaderText);
+
+    // strip postShaderText lines
+    shader.erase(shader.begin() + int(shader.size() - postShaderLineCount), shader.end());
+    // strip preShaderText lines
+    shader.erase(shader.begin(), shader.begin() + int(preShaderLineCount));
+    // std::vector<Line> shaderClean(&shader[preShaderLineCount], &shader[shader.size() - postShaderLineCount]);
+
+    // then substrace line numbers
+    for (auto&& line : shader) {
+        line.lineNumber -= preShaderLineCount;
+    }
+
+    // then substrace line numbers
+    for (auto&& line : errors) {
+        line.lineNumber -= preShaderLineCount + 1;
     }
 }

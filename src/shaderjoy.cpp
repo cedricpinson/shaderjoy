@@ -21,7 +21,9 @@ void initIMGUI(GLFWwindow* window);
 void drawIMGUI();
 void cleanupIMGUI();
 
-void debugShader(const char* text, const char* error);
+void debugShader(const char* shaderText, const char* errorLog, const char* preShaderText, const char* postShaderText,
+                 char* resultShaderWithErrors, size_t& resultShaderWithErrorsSize, char* resultErrors,
+                 size_t& resultErrorsSize);
 
 const char* defaultVertex = R"(
 #version 330
@@ -48,7 +50,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 }
 )";
 
-const char* defaultTemplateFragment1 = R"(
+const char* defaultTemplatePreFragment = R"(
 #version 330
 
 out vec4 frag_colour;
@@ -61,7 +63,7 @@ uniform float iFrameRate;
 
 )";
 
-const char* defaultTemplateFragment2 = R"(
+const char* defaultTemplatePostFragment = R"(
 void main() {
 
   vec4 color;
@@ -71,25 +73,62 @@ void main() {
 
 )";
 
-bool compileShader(const char* shaderText, GLenum shaderType, GLuint& shader)
+bool compileShader(const char* shaderText, GLenum shaderType, GLuint& shader,
+                   ShaderCompileReport* shaderReport = nullptr)
 {
+    static const size_t BufferSize = 16384;
+    char tmpBuffer[BufferSize];
+
     shader = glCreateShader(shaderType);
     glShaderSource(shader, 1, &shaderText, NULL);
     glCompileShader(shader);
     GLint shaderResult;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &shaderResult);
-    char infoLog[8192];
-    if (!shaderResult) {
-        printf("fails to compile shader:\n");
-        char buffer[4096];
-        GLsizei size;
-        glGetShaderInfoLog(shader, 4096, &size, buffer);
-        buffer[size] = 0;
-        debugShader(buffer, infoLog);
-        printf("%s\n", infoLog);
-        return false;
+
+    // shaderReport is null for vertex shader because it's not supposed to fails
+    if (shaderReport) {
+        shaderReport->errorBuffer.resize(BufferSize);
     }
-    return true;
+
+    if (!shaderResult) {
+        GLsizei size;
+        char* infoLog = shaderReport ? shaderReport->errorBuffer.data() : tmpBuffer;
+        glGetShaderInfoLog(shader, BufferSize, &size, infoLog);
+        infoLog[size] = 0;
+
+        // in case we have a problem with vertex shader printf in console
+        if (!shaderReport) {
+            printf("fails to compile shader:\n%s", infoLog);
+        } else {
+            shaderReport->errorBuffer.resize(size_t(size));
+        }
+    }
+
+    if (shaderReport) {
+        createShaderReport(shaderText, shaderResult ? nullptr : shaderReport->errorBuffer.data(),
+                           defaultTemplatePreFragment, defaultTemplatePostFragment, shaderReport);
+
+        if (!shaderResult) {
+
+            const size_t shaderTextSize = generateShaderTextWithErrorsInlined(*shaderReport, tmpBuffer, printConsole);
+            (void)shaderTextSize;
+            assert(shaderTextSize < BufferSize && "BufferSize too small to report shader errors");
+            printf("shader failed to compile:\n%s\n", tmpBuffer);
+
+            const size_t errorTextSize = generateShaderTextErrors(*shaderReport, tmpBuffer);
+            (void)errorTextSize;
+            assert(errorTextSize < BufferSize && "BufferSize too small to report shader errors");
+            printf("\nerrors lists:\n%s\n", tmpBuffer);
+        } else {
+            const size_t shaderTextSize = generateShaderTextWithErrorsInlined(*shaderReport, tmpBuffer, printConsole);
+            (void)shaderTextSize;
+            assert(shaderTextSize < BufferSize && "BufferSize too small to display shader");
+            printf("%s\n", tmpBuffer);
+        }
+        shaderReport->compileSuccess = shaderResult;
+    }
+
+    return shaderResult;
 }
 
 void outputError(int error, const char* msg) { fprintf(stderr, "Error%d: %s\n", error, msg); }
@@ -154,25 +193,26 @@ int getUniformIndex(const ProgramDescription* programDescription, const char* na
     return -1;
 }
 
-bool compileProgram(const GLuint vs, const char* shader, const size_t size, GLuint& fs, GLuint& program)
+bool compileProgram(const GLuint vs, const char* shader, const size_t size, GLuint& fs, GLuint& program,
+                    ShaderCompileReport& shaderReport)
 {
-    std::vector<char> fullShader;
+    std::vector<char>& fullShader = shaderReport.shaderBuffer;
     fullShader.resize(size + 1024);
     size_t index = 0;
     size_t fragmentSize = 0;
-    fragmentSize = strlen(defaultTemplateFragment1);
-    memcpy(fullShader.data() + index, defaultTemplateFragment1, fragmentSize);
+    fragmentSize = strlen(defaultTemplatePreFragment);
+    memcpy(fullShader.data() + index, defaultTemplatePreFragment, fragmentSize);
     index += fragmentSize;
     memcpy(fullShader.data() + index, shader, size);
     index += size;
-    fragmentSize = strlen(defaultTemplateFragment2);
-    memcpy(fullShader.data() + index, defaultTemplateFragment2, fragmentSize);
+    fragmentSize = strlen(defaultTemplatePostFragment);
+    memcpy(fullShader.data() + index, defaultTemplatePostFragment, fragmentSize);
     index += fragmentSize;
-    fullShader[index + 1] = 0;
-    fullShader.resize(index + 1);
+    fullShader[index] = 0;
+    fullShader.resize(index);
 
     GLuint newFS = glCreateShader(GL_FRAGMENT_SHADER);
-    if (!compileShader(fullShader.data(), GL_FRAGMENT_SHADER, newFS)) {
+    if (!compileShader(fullShader.data(), GL_FRAGMENT_SHADER, newFS, &shaderReport)) {
         glDeleteShader(newFS);
         return false;
     }
@@ -198,7 +238,6 @@ bool compileProgram(const GLuint vs, const char* shader, const size_t size, GLui
     program = newProgram;
     fs = newFS;
 
-    printf("%s\n", shader);
     return true;
 }
 
@@ -306,7 +345,7 @@ int main(int argc, char** argv)
     GLuint program = -1U;
     ProgramDescription programDescription;
     compileShader(defaultVertex, GL_VERTEX_SHADER, vs);
-    if (!compileProgram(vs, defaultFragment, strlen(defaultFragment), fs, program)) {
+    if (!compileProgram(vs, defaultFragment, strlen(defaultFragment), fs, program, app.shaderReport)) {
         return 1;
     }
     getProgramDescription(program, programDescription);
@@ -330,7 +369,8 @@ int main(int argc, char** argv)
         if (app.watcher.fileChanged()) {
             app.watcher.lock();
 
-            bool status = compileProgram(vs, app.watcher.getData().data(), app.watcher.getData().size(), fs, program);
+            bool status = compileProgram(vs, app.watcher.getData().data(), app.watcher.getData().size(), fs, program,
+                                         app.shaderReport);
             app.watcher.resetFileChanged();
             app.watcher.unlock();
             if (status) {
@@ -339,9 +379,9 @@ int main(int argc, char** argv)
                 UniformList newList;
                 getUniformList(&newProgramDescription, newList);
                 uniformList = newList;
-            } else {
-                printf("error to compile new program\n");
+
             }
+            app.requestFrame = true;
         }
 
         // the app can be in pause in this case we do not render new frame

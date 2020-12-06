@@ -1,6 +1,7 @@
 #pragma once
 
 #include "watcher.h"
+#include "programReport.h"
 #include <atomic>
 
 struct Application {
@@ -12,4 +13,6 @@ struct Application {
     std::vector<std::string> files;
     bool pause = false;
     bool requestFrame = true;
+
+    ShaderCompileReport shaderReport;
 };
