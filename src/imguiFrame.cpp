@@ -25,6 +25,7 @@ size_t printImGuiShaderLine(const Line& line, LineType lineType, int indentation
         ImGui::Text("%3d :%.*s", int(line.lineNumber), int(line.size), line.text);
         return 0;
     }
+    return 0;
 }
 
 void frameIMGUI(Application* app, const UniformList& uniformList)

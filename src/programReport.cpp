@@ -132,6 +132,7 @@ size_t printConsole(const Line& line, LineType lineType, int indentationError, c
     case LINE_SHADER:
         return (size_t)sprintf(buffer, " %3d :%.*s\n", int(line.lineNumber), int(line.size), line.text);
     }
+    return 0;
 }
 
 size_t generateShaderTextWithErrorsInlined(const ShaderCompileReport& shaderReport, char* buffer, PrintLine printLine)
