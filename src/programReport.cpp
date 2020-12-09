@@ -61,7 +61,7 @@ void convertTextToLineList(const char* text, std::vector<Line>& lineList)
     while (true) {
         Line line;
         line.text = currentPointer;
-        line.lineNumber = lineCount;
+        line.lineNumber = lineCount + 1;
         const char* nextLine = strchr(currentPointer, '\n');
         if (nextLine == nullptr) {
             line.size = size_t(endOfText - currentPointer);
@@ -95,9 +95,6 @@ size_t lineCount(const char* text)
     const char* currentPointer = text;
     size_t lineCount = 0;
     while (true) {
-        Line line;
-        line.text = currentPointer;
-        line.lineNumber = lineCount;
         const char* nextLine = strchr(currentPointer, '\n');
         if (nextLine == nullptr) {
             break;
@@ -143,28 +140,22 @@ size_t generateShaderTextWithErrorsInlined(const ShaderCompileReport& shaderRepo
     size_t errorIndex = 0;
     size_t resultIndex = 0;
     for (size_t i = 0; i < shaderLines.size(); ++i) {
-
+        const size_t lineNumder = shaderLines[i].lineNumber;
         bool hasError = false;
         int indentation = 0;
         for (size_t j = errorIndex; j < errorLines.size(); j++) {
-            if (errorLines[j].lineNumber == i) {
+            if (errorLines[j].lineNumber == lineNumder) {
                 hasError = true;
                 if (!indentation) {
                     indentation = getShaderLineIndentation(shaderLines[i]);
                 }
-                // resultIndex += (size_t)sprintf(buffer + resultIndex, "\033[33;3m %*s%.*s\033[0m\n",
-                // int(indentation + 5), "", int(errorLines[j].size), errorLines[j].text);
                 resultIndex += printLine(errorLines[j], LINE_ERROR, indentation, buffer + resultIndex);
             }
         }
 
         if (hasError) {
             resultIndex += printLine(shaderLines[i], LINE_SHADER_ERROR, 0, buffer + resultIndex);
-            // resultIndex += (size_t)sprintf(buffer + resultIndex, "\033[31;1m %3d :%.*s\033[0m\n", int(i),
-            //                                int(shaderLines[i].size), shaderLines[i].text);
         } else {
-            // resultIndex += (size_t)sprintf(buffer + resultIndex, " %3d :%.*s\n", int(i), int(shaderLines[i].size),
-            //                                shaderLines[i].text);
             resultIndex += printLine(shaderLines[i], LINE_SHADER, 0, buffer + resultIndex);
         }
     }
@@ -221,6 +212,6 @@ void createShaderReport(const char* shaderText,     // NOLINT
 
     // then substrace line numbers
     for (auto&& line : errors) {
-        line.lineNumber -= preShaderLineCount + 1;
+        line.lineNumber -= preShaderLineCount;
     }
 }

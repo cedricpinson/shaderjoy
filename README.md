@@ -5,6 +5,29 @@ Basically shaderjoy is shadertoy but to run natively instead of the webpage.
 
 I started to do the raytracing series  https://raytracing.github.io/ on shadertoy but was limited because it's in the browser. I wanted to edit my shader with emacs reloading on each changes and commit my progression in a git repository. So I started shaderjoy, it follows the same variable names iFrame,... function name mainImage... the idea is when I am happy with a step I could publish to shadertoy.
 
+## Build
+To build it you will need to install cmake and glfw
+
+### Macos
+```
+brew install glfw cmake
+git clone git@github.com:cedricpinson/shaderjoy.git
+cd shaderjoy
+mkdir build
+cd build
+cmake ../
+make
+src/shaderjoy yourFragment.glsl
+```
+
+### Windows
+use windows way of generating projects https://cmake.org/runningcmake/
+
+## How to use it
+```
+src/shaderjoy yourFragment.glsl
+```
+
 ## links
 - sokol https://github.com/floooh/sokol
 - glfw https://github.com/glfw/glfw
