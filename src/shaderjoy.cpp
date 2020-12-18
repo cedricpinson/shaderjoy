@@ -11,6 +11,7 @@
 #include <GLFW/glfw3.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <atomic>
 #include <mutex>
@@ -379,7 +380,6 @@ int main(int argc, char** argv)
                 UniformList newList;
                 getUniformList(&newProgramDescription, newList);
                 uniformList = newList;
-
             }
             app.requestFrame = true;
         }

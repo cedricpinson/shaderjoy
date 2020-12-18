@@ -6,3 +6,5 @@ GRTAGS
 GTAGS
 .DS_Store
 .clang_complete
+compile_commands.json
+.cache
