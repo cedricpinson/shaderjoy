@@ -6,12 +6,11 @@
 
 #include <glad/glad.h> // Initialize with gladLoadGL()
 
-
 // Include glfw3.h after our OpenGL definitions
 #include <GLFW/glfw3.h>
 
 #if (_MSC_VER >= 800) || defined(_STDCALL_SUPPORTED)
-// on windows get double define on this value 
+// on windows get double define on this value
 // minwindef.h doesn't check before setting it...
 #undef APIENTRY
 #endif

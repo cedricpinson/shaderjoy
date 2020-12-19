@@ -13,4 +13,3 @@ struct UniformList {
     int iFrameLocation;
     int iFrameRateLocation;
 };
-

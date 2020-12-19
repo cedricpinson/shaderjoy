@@ -33,4 +33,7 @@ if(APPLE)
     include_directories(SYSTEM /usr/local/include)
 endif(APPLE)
 
+include("${CMAKE_MODULE_PATH}/format.cmake")
+
 add_subdirectory(src)
+

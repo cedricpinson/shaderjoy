@@ -20,14 +20,14 @@ jobs:
     steps:
       - uses: styfle/cancel-workflow-action@0.6.0
         with:
-          workflow_id: 3265055
+          workflow_id: 0
           access_token: ${{ github.token }}
 
   dope:
     # The type of runner that the job will run on
     runs-on: ubuntu-18.04
     container:
-      image: docker.pkg.github.com/trigrou/shaderjoy/shaderjoy-ci:latest
+      image: docker.pkg.github.com/cedricpinson/shaderjoy/shaderjoy-ci:latest
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
