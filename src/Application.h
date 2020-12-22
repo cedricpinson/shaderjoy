@@ -1,7 +1,7 @@
 #pragma once
 
-#include "watcher.h"
 #include "programReport.h"
+#include "watcher.h"
 #include <atomic>
 
 struct Application {

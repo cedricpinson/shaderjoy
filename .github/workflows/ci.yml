@@ -1,0 +1,55 @@
+# This is a basic workflow to help you get started with Actions
+name: CI
+
+# Controls when the action will run. Triggers the workflow on push or pull request
+# events but only for the master branch
+on:
+  pull_request:
+    branches: [ master ]
+    paths-ignore:
+    - 'ci/**'
+    - '.github/**'
+    - '!.github/workflows/ci.yml'
+
+jobs:
+
+  cancel:
+    name: 'Cancel Previous Runs'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: styfle/cancel-workflow-action@0.6.0
+        with:
+          workflow_id: 0
+          access_token: ${{ github.token }}
+
+  dope:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-18.04
+    container:
+      image: docker.pkg.github.com/cedricpinson/shaderjoy/shaderjoy-ci:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+
+      - name: setup
+        run: |
+            cd $GITHUB_WORKSPACE
+            mkdir build
+            cd build
+            CXX=/usr/bin/clang++-11 CC=/usr/bin/clang-11 cmake ..
+
+      - name: check-format
+        run: |
+            cd $GITHUB_WORKSPACE/build
+            make check-format
+
+      - name: build
+        run: |
+            cd $GITHUB_WORKSPACE/build
+            make -j2
