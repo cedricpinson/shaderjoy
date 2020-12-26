@@ -79,11 +79,7 @@ GLFWwindow* setupWindow(WindowStyle style, Application* app)
         return nullptr;
     }
 
-    // glfwSetInputMode(window.window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
     glfwMakeContextCurrent(window);
-    app->pixelRatio = getPixelRatio(window);
-    printf("window size %d x %d : pixel ratio %f\n", app->width, app->height, app->pixelRatio);
-
     if (!gladLoadGL()) {
         glfwTerminate();
         fprintf(stderr, "Faileid to initialize glad");
@@ -94,29 +90,46 @@ GLFWwindow* setupWindow(WindowStyle style, Application* app)
     printf("%s\n", glGetString(GL_RENDERER));
     printf("Shading language : %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
 
-    glfwSetWindowSizeCallback(window, [](GLFWwindow* _window, int _w, int _h) {
-        (void)_window;
-        setViewport(_w, _h);
+    glfwSetWindowSizeCallback(window, [](GLFWwindow* window, int w, int h) {
+        (void)window;
+        setViewport(w, h);
     });
 
-    glfwSetKeyCallback(window, [](GLFWwindow* _window, int _key, int _scancode, int _action, int _mods) {
-        (void)_window;
-        (void)_scancode;
-        (void)_action;
-        (void)_mods;
-        if (_key == GLFW_KEY_ESCAPE && _action == GLFW_PRESS) {
-            glfwSetWindowShouldClose(_window, GLFW_TRUE);
-        } else if (_key == GLFW_KEY_SPACE && _action == GLFW_PRESS) {
+    glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
+        (void)window;
+        (void)scancode;
+        (void)action;
+        (void)mods;
+        if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+            glfwSetWindowShouldClose(window, GLFW_TRUE);
+        } else if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
             gApplication->pause = !gApplication->pause;
             if (gApplication->pause) {
-                glfwSetWindowTitle(_window, "shaderjoy - PAUSED");
+                glfwSetWindowTitle(window, "shaderjoy - PAUSED");
             } else {
-                glfwSetWindowTitle(_window, title);
+                glfwSetWindowTitle(window, title);
             }
         }
     });
 
-    setViewport(app->width, app->height);
+    glfwSetMouseButtonCallback(window, [](GLFWwindow* window, int button, int action, int mods) {
+        (void)window;
+        (void)mods;
+        // we dont care about all buttons. We handle only button 0 and 1
+        if (button > 1) {
+            return;
+        }
+
+        gApplication->mouseButtonClicked[button] = action == GLFW_PRESS;
+    });
+
+    app->pixelRatio = getPixelRatio(window);
+    if (app->pixelRatio > 1) {
+        glfwSetWindowSize(window, app->width / app->pixelRatio, app->height / app->pixelRatio);
+    } else {
+        setViewport(app->width, app->height);
+    }
+    printf("window size %d x %d : pixel ratio %f\n", app->width, app->height, app->pixelRatio);
 
     glfwSwapInterval(1);
 

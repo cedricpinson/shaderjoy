@@ -18,6 +18,15 @@
 #include <thread>
 #include <vector>
 
+float clamp(const float v, const float min, const float max)
+{
+    if (v < min)
+        return min;
+    if (v > max)
+        return max;
+    return v;
+}
+
 void initIMGUI(GLFWwindow* window);
 void drawIMGUI();
 void cleanupIMGUI();
@@ -56,6 +65,7 @@ const char* defaultTemplatePreFragment = R"(
 
 out vec4 frag_colour;
 
+uniform vec4 iMouse;
 uniform vec3 iResolution;
 uniform float iTime;
 uniform float iTimeDelta;
@@ -244,17 +254,27 @@ bool compileProgram(const GLuint vs, const char* shader, const size_t size, GLui
 
 void getUniformList(const ProgramDescription* description, UniformList& uniforms)
 {
+    uniforms.iMouseLocation = getUniformLocation(description, "iMouse");
     uniforms.iTimeLocation = getUniformLocation(description, "iTime");
     uniforms.iResolutionLocation = getUniformLocation(description, "iResolution");
     uniforms.iTimeDeltaLocation = getUniformLocation(description, "iTimeDelta");
     uniforms.iFrameLocation = getUniformLocation(description, "iFrame");
-    uniforms.iFrameRateLocation = getUniformLocation(description, "iFrameRate");
 }
 
 //#define DISPLAY_UNIFORM
 
 void updateUniforms(UniformList uniforms)
 {
+
+    // vec4
+    if (uniforms.iMouseLocation != -1) {
+#ifdef DISPLAY_UNIFORM
+        printf("iMouse %d: %f %f %f %f\n", uniforms.iMouseLocation, uniforms.iMouse[0], uniforms.iMouse[1],
+               uniforms.iMouse[2], uniforms.iMouse[3]);
+#endif
+        glUniform4fv(uniforms.iMouseLocation, 1, uniforms.iMouse);
+    }
+
     // vec3
     if (uniforms.iResolutionLocation != -1) {
 #ifdef DISPLAY_UNIFORM
@@ -277,13 +297,6 @@ void updateUniforms(UniformList uniforms)
         printf("iTimeDelta %f\n", uniforms.iTimeDelta);
 #endif
         glUniform1f(uniforms.iTimeDeltaLocation, uniforms.iTimeDelta);
-    }
-
-    if (uniforms.iFrameRateLocation != -1) {
-#ifdef DISPLAY_UNIFORM
-        printf("iFrameRate %d\n", uniforms.iFrameRate);
-#endif
-        glUniform1f(uniforms.iFrameRateLocation, uniforms.iFrameRate);
     }
 
     // int
@@ -393,10 +406,33 @@ int main(int argc, char** argv)
             continue;
         }
 
+        float mouseX, mouseY;
+        {
+            double xpos, ypos;
+            glfwGetCursorPos(window, &xpos, &ypos);
+            mouseX = static_cast<float>(xpos);
+            mouseY = static_cast<float>(ypos);
+        }
+
+        const float viewportWidth = app.width * app.pixelRatio;
+        const float viewportHeight = app.height * app.pixelRatio;
+        mouseX = clamp(mouseX, 0.0f, viewportWidth);
+        mouseY = clamp(mouseY, 0.0f, viewportHeight);
+
+        // update iMouse
+        if (app.mouseButtonClicked[0]) {
+            uniformList.iMouse[0] = mouseX;
+            uniformList.iMouse[1] = mouseY;
+        }
+        if (app.mouseButtonClicked[1]) {
+            uniformList.iMouse[2] = mouseX;
+            uniformList.iMouse[3] = mouseY;
+        }
+
         // update window dimension
-        uniformList.iResolution[0] = float(app.width) * app.pixelRatio;
-        uniformList.iResolution[1] = float(app.height) * app.pixelRatio;
-        uniformList.iResolution[2] = uniformList.iResolution[1] / uniformList.iResolution[0];
+        uniformList.iResolution[0] = viewportWidth;
+        uniformList.iResolution[1] = viewportHeight;
+        uniformList.iResolution[2] = viewportHeight / viewportWidth;
 
         // Clear the background
         glClear(GL_COLOR_BUFFER_BIT);
@@ -428,7 +464,7 @@ int main(int argc, char** argv)
             // compute fps
             const double deltaFPS = now - fpsStart;
             if (deltaFPS >= 1000.0) {
-                uniformList.iFrameRate = static_cast<float>(double(fpsFrameCount) * 1000.0 / deltaFPS);
+                app.frameRate = static_cast<float>(double(fpsFrameCount) * 1000.0 / deltaFPS);
                 fpsFrameCount = 0;
                 fpsStart = now;
             }

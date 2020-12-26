@@ -45,7 +45,7 @@ void frameIMGUI(Application* app, const UniformList& uniformList)
 
     char menuTitle[1024];
     int index = 0;
-    index += sprintf(&menuTitle[index], "FPS %.1f ", uniformList.iFrameRate);
+    index += sprintf(&menuTitle[index], "FPS %.1f ", app->frameRate);
     index += sprintf(&menuTitle[index], "Frame %d ", uniformList.iFrame);
     index += sprintf(&menuTitle[index], "Time %.2f ", uniformList.iTime);
     index += sprintf(&menuTitle[index], "Time %.2f ", uniformList.iTime);
