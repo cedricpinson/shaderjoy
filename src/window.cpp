@@ -9,12 +9,12 @@ const char* const title = "shaderjoy - Press space to pause";
 
 Application* gApplication = nullptr;
 
-void setViewport(int _width, int _height)
+void setViewport(int width, int height)
 {
-    gApplication->width = _width;
-    gApplication->height = _height;
+    gApplication->width = width;
+    gApplication->height = height;
     const float pixelRatio = gApplication->pixelRatio;
-    glViewport(0, 0, int(float(_width) * pixelRatio), int(float(_height) * pixelRatio));
+    glViewport(0, 0, int(float(width) * pixelRatio), int(float(height) * pixelRatio));
     // printf("setViewport %d x %d\n", int(_width * pixelRatio), int(_height * pixelRatio));
     gApplication->requestFrame = true;
 }

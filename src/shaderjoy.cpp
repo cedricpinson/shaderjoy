@@ -87,8 +87,8 @@ void main() {
 bool compileShader(const char* shaderText, GLenum shaderType, GLuint& shader,
                    ShaderCompileReport* shaderReport = nullptr)
 {
-    static const size_t BufferSize = 16384;
-    char tmpBuffer[BufferSize];
+    const size_t bufferSize = 16384;
+    char tmpBuffer[bufferSize];
 
     shader = glCreateShader(shaderType);
     glShaderSource(shader, 1, &shaderText, NULL);
@@ -98,13 +98,13 @@ bool compileShader(const char* shaderText, GLenum shaderType, GLuint& shader,
 
     // shaderReport is null for vertex shader because it's not supposed to fails
     if (shaderReport) {
-        shaderReport->errorBuffer.resize(BufferSize);
+        shaderReport->errorBuffer.resize(bufferSize);
     }
 
     if (!shaderResult) {
         GLsizei size;
         char* infoLog = shaderReport ? shaderReport->errorBuffer.data() : tmpBuffer;
-        glGetShaderInfoLog(shader, BufferSize, &size, infoLog);
+        glGetShaderInfoLog(shader, bufferSize, &size, infoLog);
         infoLog[size] = 0;
 
         // in case we have a problem with vertex shader printf in console
@@ -123,17 +123,17 @@ bool compileShader(const char* shaderText, GLenum shaderType, GLuint& shader,
 
             const size_t shaderTextSize = generateShaderTextWithErrorsInlined(*shaderReport, tmpBuffer, printConsole);
             (void)shaderTextSize;
-            assert(shaderTextSize < BufferSize && "BufferSize too small to report shader errors");
+            assert(shaderTextSize < bufferSize && "BufferSize too small to report shader errors");
             printf("shader failed to compile:\n%s\n", tmpBuffer);
 
             const size_t errorTextSize = generateShaderTextErrors(*shaderReport, tmpBuffer);
             (void)errorTextSize;
-            assert(errorTextSize < BufferSize && "BufferSize too small to report shader errors");
+            assert(errorTextSize < bufferSize && "BufferSize too small to report shader errors");
             printf("\nerrors lists:\n%s\n", tmpBuffer);
         } else {
             const size_t shaderTextSize = generateShaderTextWithErrorsInlined(*shaderReport, tmpBuffer, printConsole);
             (void)shaderTextSize;
-            assert(shaderTextSize < BufferSize && "BufferSize too small to display shader");
+            assert(shaderTextSize < bufferSize && "BufferSize too small to display shader");
             printf("%s\n", tmpBuffer);
         }
         shaderReport->compileSuccess = shaderResult;
@@ -240,7 +240,7 @@ bool compileProgram(const GLuint vs, const char* shader, const size_t size, GLui
         return false;
     }
 
-    // success and exist an older program delete it
+    // success and an older program exist, so delete it
     if (program != -1U) {
         glDeleteProgram(program);
         glDeleteShader(fs);
@@ -339,6 +339,7 @@ int main(int argc, char** argv)
 
     initIMGUI(window);
 
+    // fullscreen triangle
     float points[] = {4.0f,  -1.0f, // NOLINT
                       -1.0f, 4.0f,  // NOLINT
                       -1.0f, -1.0f};
