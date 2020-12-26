@@ -5,9 +5,10 @@
 #include <GLFW/glfw3.h>
 #include <stdio.h>
 
-const char* const title = "shaderjoy - Press space to pause";
-
+namespace {
+const char* const Title = "shaderjoy - Press space to pause";
 Application* gApplication = nullptr;
+} // namespace
 
 void setViewport(int width, int height)
 {
@@ -68,9 +69,9 @@ GLFWwindow* setupWindow(WindowStyle style, Application* app)
         glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
         glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
         glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
-        window = glfwCreateWindow(app->width, app->height, title, monitor, NULL);
+        window = glfwCreateWindow(app->width, app->height, Title, monitor, NULL);
     } else {
-        window = glfwCreateWindow(app->width, app->height, title, NULL, NULL);
+        window = glfwCreateWindow(app->width, app->height, Title, NULL, NULL);
     }
 
     if (!window) {
@@ -107,7 +108,7 @@ GLFWwindow* setupWindow(WindowStyle style, Application* app)
             if (gApplication->pause) {
                 glfwSetWindowTitle(window, "shaderjoy - PAUSED");
             } else {
-                glfwSetWindowTitle(window, title);
+                glfwSetWindowTitle(window, Title);
             }
         }
     });

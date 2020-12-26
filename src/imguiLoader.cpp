@@ -19,7 +19,7 @@
 
 void initIMGUI(GLFWwindow* window)
 {
-    const char* glsl_version = "#version 330";
+    const char* glslVersion = "#version 330";
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -35,7 +35,7 @@ void initIMGUI(GLFWwindow* window)
 
     // Setup Platform/Renderer bindings
     ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init(glsl_version);
+    ImGui_ImplOpenGL3_Init(glslVersion);
 
     // Load Fonts
     // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use
@@ -71,9 +71,9 @@ void initIMGUI(GLFWwindow* window)
 
 void drawIMGUI()
 {
-    bool show_demo_window = true;
-    bool show_another_window = false;
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    bool show_demo_window = true;                            // NOLINT
+    bool show_another_window = false;                        // NOLINT
+    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f); // NOLINT
 
     // Start the Dear ImGui frame
     ImGui_ImplOpenGL3_NewFrame();

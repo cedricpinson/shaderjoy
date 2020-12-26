@@ -30,7 +30,9 @@ bool extractLineError(Line& line, const char* errorLine, size_t errorLineSize)
         line.text = endLineNumberPtr + 2;
         line.size = size_t((errorLine + errorLineSize) - line.text);
         return true;
-    } else if (memcmp("0(", errorLine, 2) == 0) {
+    }
+
+    if (memcmp("0(", errorLine, 2) == 0) {
         // parse this format:
         // 0(18) : error C0000: syntax error, unexpected ';', expecting "::" at token ";"
         // 0(23) : error C1503: undefined variable "offset"
@@ -132,7 +134,8 @@ size_t printConsole(const Line& line, LineType lineType, int indentationError, c
     return 0;
 }
 
-size_t generateShaderTextWithErrorsInlined(const ShaderCompileReport& shaderReport, char* buffer, PrintLine printLine)
+size_t generateShaderTextWithErrorsInlined(const ShaderCompileReport& shaderReport, char* buffer,
+                                           const PrintLine& printLine)
 {
     const std::vector<Line>& shaderLines = shaderReport.shaderLines;
     const std::vector<Line>& errorLines = shaderReport.errorLines;

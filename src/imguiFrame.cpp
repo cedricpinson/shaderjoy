@@ -7,7 +7,7 @@ void ImGui_ImplOpenGL3_NewFrame();
 void ImGui_ImplGlfw_NewFrame();
 void ImGui_ImplOpenGL3_RenderDrawData(ImDrawData*);
 
-size_t printImGuiShaderLine(const Line& line, LineType lineType, int indentationError, char* buffer)
+size_t printImGuiShaderLine(const Line& line, LineType lineType, int indentationError, const char* buffer)
 {
     (void)buffer;
     switch (lineType) {
