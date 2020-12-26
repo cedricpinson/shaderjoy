@@ -2,6 +2,7 @@
 #include "ProgramDescription.h"
 #include "UniformList.h"
 #include "glad/glad.h"
+#include "screenShoot.h"
 #include "timer.h"
 #include "watcher.h"
 #include "window.h"
@@ -312,16 +313,38 @@ void frameIMGUI(Application* app, const UniformList& uniformList);
 
 void drawFrame() {}
 
+void usage()
+{
+    printf("Usage: shaderjoy [--save-frame] shader-file.glsl\n");
+    printf("run shaderjoy and watch files to reload them if they change\n");
+    printf("to report issue: https://github.com/cedricpinson/shaderjoy/issues\n");
+}
+
 int main(int argc, char** argv)
 {
     (void)argc;
     (void)argv;
-
+    const char* const saveImagePath = "./shaderjoy_frame.png";
+    bool executeOneFrame = false;
     initTime();
     Application app;
 
+    if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
+        usage();
+        return 0;
+    }
+
+    int argvIndex = 1;
     if (argc > 1) {
-        app.files.push_back(argv[1]);
+        if (strcmp(argv[argvIndex], "--save-frame") == 0) {
+            executeOneFrame = true;
+            argvIndex++;
+            printf("will execute and save one frame [%s]\n", saveImagePath);
+        }
+        printf("watching file %s\n", argv[argvIndex]);
+        app.files.push_back(argv[argvIndex]);
+    } else {
+        printf("no file to watch use the default shader as example\n");
     }
 
     glfwSetErrorCallback(outputError);
@@ -448,10 +471,19 @@ int main(int argc, char** argv)
         // draw points 0-3 from the currently bound VAO with current in-use shader
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
-        frameIMGUI(&app, uniformList);
+        // do not save the ui if execute and save one frame
+        if (!executeOneFrame) {
+            frameIMGUI(&app, uniformList);
+        }
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
+
+        if (executeOneFrame) {
+            screenShoot(&app, saveImagePath);
+            // screenShoot(&app, saveImagePath);
+            break;
+        }
 
         // updates some var to refresh uniforms
         uniformList.iFrame++;
