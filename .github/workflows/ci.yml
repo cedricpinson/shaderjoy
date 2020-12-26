@@ -5,7 +5,7 @@ name: CI
 # events but only for the master branch
 on:
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
     paths-ignore:
     - 'ci/**'
     - '.github/**'
@@ -20,14 +20,14 @@ jobs:
     steps:
       - uses: styfle/cancel-workflow-action@0.6.0
         with:
-          workflow_id: 0
+          workflow_id: 1612395223
           access_token: ${{ github.token }}
 
-  dope:
+  shaderjoy:
     # The type of runner that the job will run on
     runs-on: ubuntu-18.04
     container:
-      image: docker.pkg.github.com/cedricpinson/shaderjoy/shaderjoy-ci:latest
+      image: docker.pkg.github.com/cedricpinson/shaderjoy/shaderjoy-ci:sha-49f22ab
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -42,12 +42,17 @@ jobs:
             cd $GITHUB_WORKSPACE
             mkdir build
             cd build
-            CXX=/usr/bin/clang++-11 CC=/usr/bin/clang-11 cmake ..
+            CXX=/usr/bin/clang++-11 CC=/usr/bin/clang-11 cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 ..
 
       - name: check-format
         run: |
             cd $GITHUB_WORKSPACE/build
             make check-format
+
+      - name: clang-tidy
+        run: |
+            cd $GITHUB_WORKSPACE/build
+            make clang-tidy
 
       - name: build
         run: |
