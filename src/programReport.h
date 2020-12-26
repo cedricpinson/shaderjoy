@@ -37,5 +37,6 @@ void createShaderReport(const char* shaderText,     // NOLINT
                         ShaderCompileReport* shaderReport);
 
 size_t generateShaderTextErrors(const ShaderCompileReport& shaderReport, char* buffer);
-size_t generateShaderTextWithErrorsInlined(const ShaderCompileReport& shaderReport, char* buffer, PrintLine printLine);
+size_t generateShaderTextWithErrorsInlined(const ShaderCompileReport& shaderReport, char* buffer,
+                                           const PrintLine& printLine);
 int getShaderLineIndentation(const Line& line);

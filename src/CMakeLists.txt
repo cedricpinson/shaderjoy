@@ -6,6 +6,7 @@ set(SOURCES
     timer.cpp
     window.cpp
     watcher.cpp
+    screenShoot.cpp
     shaderjoy.cpp
 )
 

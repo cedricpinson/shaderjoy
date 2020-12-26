@@ -2,6 +2,7 @@
 #include "ProgramDescription.h"
 #include "UniformList.h"
 #include "glad/glad.h"
+#include "screenShoot.h"
 #include "timer.h"
 #include "watcher.h"
 #include "window.h"
@@ -17,6 +18,15 @@
 #include <mutex>
 #include <thread>
 #include <vector>
+
+float clamp(const float v, const float min, const float max)
+{
+    if (v < min)
+        return min;
+    if (v > max)
+        return max;
+    return v;
+}
 
 void initIMGUI(GLFWwindow* window);
 void drawIMGUI();
@@ -56,6 +66,7 @@ const char* defaultTemplatePreFragment = R"(
 
 out vec4 frag_colour;
 
+uniform vec4 iMouse;
 uniform vec3 iResolution;
 uniform float iTime;
 uniform float iTimeDelta;
@@ -77,8 +88,8 @@ void main() {
 bool compileShader(const char* shaderText, GLenum shaderType, GLuint& shader,
                    ShaderCompileReport* shaderReport = nullptr)
 {
-    static const size_t BufferSize = 16384;
-    char tmpBuffer[BufferSize];
+    const size_t bufferSize = 16384;
+    char tmpBuffer[bufferSize];
 
     shader = glCreateShader(shaderType);
     glShaderSource(shader, 1, &shaderText, NULL);
@@ -88,13 +99,13 @@ bool compileShader(const char* shaderText, GLenum shaderType, GLuint& shader,
 
     // shaderReport is null for vertex shader because it's not supposed to fails
     if (shaderReport) {
-        shaderReport->errorBuffer.resize(BufferSize);
+        shaderReport->errorBuffer.resize(bufferSize);
     }
 
     if (!shaderResult) {
         GLsizei size;
         char* infoLog = shaderReport ? shaderReport->errorBuffer.data() : tmpBuffer;
-        glGetShaderInfoLog(shader, BufferSize, &size, infoLog);
+        glGetShaderInfoLog(shader, bufferSize, &size, infoLog);
         infoLog[size] = 0;
 
         // in case we have a problem with vertex shader printf in console
@@ -113,17 +124,17 @@ bool compileShader(const char* shaderText, GLenum shaderType, GLuint& shader,
 
             const size_t shaderTextSize = generateShaderTextWithErrorsInlined(*shaderReport, tmpBuffer, printConsole);
             (void)shaderTextSize;
-            assert(shaderTextSize < BufferSize && "BufferSize too small to report shader errors");
+            assert(shaderTextSize < bufferSize && "BufferSize too small to report shader errors");
             printf("shader failed to compile:\n%s\n", tmpBuffer);
 
             const size_t errorTextSize = generateShaderTextErrors(*shaderReport, tmpBuffer);
             (void)errorTextSize;
-            assert(errorTextSize < BufferSize && "BufferSize too small to report shader errors");
+            assert(errorTextSize < bufferSize && "BufferSize too small to report shader errors");
             printf("\nerrors lists:\n%s\n", tmpBuffer);
         } else {
             const size_t shaderTextSize = generateShaderTextWithErrorsInlined(*shaderReport, tmpBuffer, printConsole);
             (void)shaderTextSize;
-            assert(shaderTextSize < BufferSize && "BufferSize too small to display shader");
+            assert(shaderTextSize < bufferSize && "BufferSize too small to display shader");
             printf("%s\n", tmpBuffer);
         }
         shaderReport->compileSuccess = shaderResult;
@@ -230,7 +241,7 @@ bool compileProgram(const GLuint vs, const char* shader, const size_t size, GLui
         return false;
     }
 
-    // success and exist an older program delete it
+    // success and an older program exist, so delete it
     if (program != -1U) {
         glDeleteProgram(program);
         glDeleteShader(fs);
@@ -244,17 +255,27 @@ bool compileProgram(const GLuint vs, const char* shader, const size_t size, GLui
 
 void getUniformList(const ProgramDescription* description, UniformList& uniforms)
 {
+    uniforms.iMouseLocation = getUniformLocation(description, "iMouse");
     uniforms.iTimeLocation = getUniformLocation(description, "iTime");
     uniforms.iResolutionLocation = getUniformLocation(description, "iResolution");
     uniforms.iTimeDeltaLocation = getUniformLocation(description, "iTimeDelta");
     uniforms.iFrameLocation = getUniformLocation(description, "iFrame");
-    uniforms.iFrameRateLocation = getUniformLocation(description, "iFrameRate");
 }
 
 //#define DISPLAY_UNIFORM
 
 void updateUniforms(UniformList uniforms)
 {
+
+    // vec4
+    if (uniforms.iMouseLocation != -1) {
+#ifdef DISPLAY_UNIFORM
+        printf("iMouse %d: %f %f %f %f\n", uniforms.iMouseLocation, uniforms.iMouse[0], uniforms.iMouse[1],
+               uniforms.iMouse[2], uniforms.iMouse[3]);
+#endif
+        glUniform4fv(uniforms.iMouseLocation, 1, uniforms.iMouse);
+    }
+
     // vec3
     if (uniforms.iResolutionLocation != -1) {
 #ifdef DISPLAY_UNIFORM
@@ -279,13 +300,6 @@ void updateUniforms(UniformList uniforms)
         glUniform1f(uniforms.iTimeDeltaLocation, uniforms.iTimeDelta);
     }
 
-    if (uniforms.iFrameRateLocation != -1) {
-#ifdef DISPLAY_UNIFORM
-        printf("iFrameRate %d\n", uniforms.iFrameRate);
-#endif
-        glUniform1f(uniforms.iFrameRateLocation, uniforms.iFrameRate);
-    }
-
     // int
     if (uniforms.iFrameLocation != -1) {
 #ifdef DISPLAY_UNIFORM
@@ -299,16 +313,38 @@ void frameIMGUI(Application* app, const UniformList& uniformList);
 
 void drawFrame() {}
 
+void usage()
+{
+    printf("Usage: shaderjoy [--save-frame] shader-file.glsl\n");
+    printf("run shaderjoy and watch files to reload them if they change\n");
+    printf("to report issue: https://github.com/cedricpinson/shaderjoy/issues\n");
+}
+
 int main(int argc, char** argv)
 {
     (void)argc;
     (void)argv;
-
+    const char* const saveImagePath = "./shaderjoy_frame.png";
+    bool executeOneFrame = false;
     initTime();
     Application app;
 
+    if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
+        usage();
+        return 0;
+    }
+
+    int argvIndex = 1;
     if (argc > 1) {
-        app.files.push_back(argv[1]);
+        if (strcmp(argv[argvIndex], "--save-frame") == 0) {
+            executeOneFrame = true;
+            argvIndex++;
+            printf("will execute and save one frame [%s]\n", saveImagePath);
+        }
+        printf("watching file %s\n", argv[argvIndex]);
+        app.files.push_back(argv[argvIndex]);
+    } else {
+        printf("no file to watch use the default shader as example\n");
     }
 
     glfwSetErrorCallback(outputError);
@@ -326,6 +362,7 @@ int main(int argc, char** argv)
 
     initIMGUI(window);
 
+    // fullscreen triangle
     float points[] = {4.0f,  -1.0f, // NOLINT
                       -1.0f, 4.0f,  // NOLINT
                       -1.0f, -1.0f};
@@ -393,10 +430,33 @@ int main(int argc, char** argv)
             continue;
         }
 
+        float mouseX, mouseY;
+        {
+            double xpos, ypos;
+            glfwGetCursorPos(window, &xpos, &ypos);
+            mouseX = static_cast<float>(xpos);
+            mouseY = static_cast<float>(ypos);
+        }
+
+        const float viewportWidth = app.width * app.pixelRatio;
+        const float viewportHeight = app.height * app.pixelRatio;
+        mouseX = clamp(mouseX, 0.0f, viewportWidth);
+        mouseY = clamp(mouseY, 0.0f, viewportHeight);
+
+        // update iMouse
+        if (app.mouseButtonClicked[0]) {
+            uniformList.iMouse[0] = mouseX;
+            uniformList.iMouse[1] = mouseY;
+        }
+        if (app.mouseButtonClicked[1]) {
+            uniformList.iMouse[2] = mouseX;
+            uniformList.iMouse[3] = mouseY;
+        }
+
         // update window dimension
-        uniformList.iResolution[0] = float(app.width) * app.pixelRatio;
-        uniformList.iResolution[1] = float(app.height) * app.pixelRatio;
-        uniformList.iResolution[2] = uniformList.iResolution[1] / uniformList.iResolution[0];
+        uniformList.iResolution[0] = viewportWidth;
+        uniformList.iResolution[1] = viewportHeight;
+        uniformList.iResolution[2] = viewportHeight / viewportWidth;
 
         // Clear the background
         glClear(GL_COLOR_BUFFER_BIT);
@@ -411,10 +471,19 @@ int main(int argc, char** argv)
         // draw points 0-3 from the currently bound VAO with current in-use shader
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
-        frameIMGUI(&app, uniformList);
+        // do not save the ui if execute and save one frame
+        if (!executeOneFrame) {
+            frameIMGUI(&app, uniformList);
+        }
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
+
+        if (executeOneFrame) {
+            screenShoot(&app, saveImagePath);
+            // screenShoot(&app, saveImagePath);
+            break;
+        }
 
         // updates some var to refresh uniforms
         uniformList.iFrame++;
@@ -428,7 +497,7 @@ int main(int argc, char** argv)
             // compute fps
             const double deltaFPS = now - fpsStart;
             if (deltaFPS >= 1000.0) {
-                uniformList.iFrameRate = static_cast<float>(double(fpsFrameCount) * 1000.0 / deltaFPS);
+                app.frameRate = static_cast<float>(double(fpsFrameCount) * 1000.0 / deltaFPS);
                 fpsFrameCount = 0;
                 fpsStart = now;
             }
