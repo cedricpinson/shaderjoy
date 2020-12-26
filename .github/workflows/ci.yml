@@ -27,7 +27,7 @@ jobs:
     # The type of runner that the job will run on
     runs-on: ubuntu-18.04
     container:
-      image: docker.pkg.github.com/cedricpinson/shaderjoy/shaderjoy-ci:latest
+      image: docker.pkg.github.com/cedricpinson/shaderjoy/shaderjoy-ci:sha-49f22ab
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
