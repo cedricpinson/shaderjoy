@@ -8,6 +8,8 @@ set(SOURCES
     watcher.cpp
     screenShoot.cpp
     shaderjoy.cpp
+    stbImageImpl.cpp
+    stbImageWriteImpl.cpp
 )
 
 include_directories(${GLFW_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/deps)
