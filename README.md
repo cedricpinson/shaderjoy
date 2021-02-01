@@ -44,6 +44,11 @@ src/shaderjoy yourFragment.glsl
 # to execute your shader and save the first frame, shaderjoy will exit just after
 src/shaderjoy --save-frame yourFragment.glsl
 
+# to use textures (they will be watch like the shader)
+src/shaderjoy --texture0 [2d:linear:repeat] texture.png yourFragment.glsl
+src/shaderjoy --texture0 [3d:linear:repeat:sizex:sizey:sizez] texture.data yourFragment.glsl
+
+
 ```
 
 ## links
